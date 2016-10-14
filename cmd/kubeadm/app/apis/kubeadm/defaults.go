@@ -20,4 +20,5 @@ const (
 	DefaultServiceDNSDomain  = "cluster.local"
 	DefaultServicesSubnet    = "10.12.0.0/12"
 	DefaultKubernetesVersion = "v1.4.1"
+	DefaultCoreImagePrefix   = "gcr.io/google_containers"
 )

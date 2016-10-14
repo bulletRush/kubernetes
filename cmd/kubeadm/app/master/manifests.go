@@ -23,7 +23,7 @@ import (
 	"os"
 	"path"
 	"strings"
-
+	"time"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	"k8s.io/kubernetes/cmd/kubeadm/app/images"
 	"k8s.io/kubernetes/pkg/api/resource"
@@ -31,6 +31,8 @@ import (
 	api "k8s.io/kubernetes/pkg/api/v1"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/kubelet/dockertools"
+	dockertypes "github.com/docker/engine-api/types"
 )
 
 // Static pod definitions in golang form are included below so that `kubeadm init` can get going.
@@ -50,6 +52,13 @@ const (
 	kubeProxy             = "kube-proxy"
 	pkiDir                = "/etc/kubernetes/pki"
 )
+
+func pullImages(image string) error {
+	dockerClient := dockertools.ConnectToDockerOrDie("", time.Minute * 5)
+	auth := dockertypes.AuthConfig{}
+	opts := dockertypes.ImagePullOptions{}
+	return dockerClient.PullImage(image, auth, opts)
+}
 
 // WriteStaticPodManifests builds manifest objects based on user provided configuration and then dumps it to disk
 // where kubelet will pick and schedule them.
@@ -112,11 +121,31 @@ func WriteStaticPodManifests(s *kubeadmapi.MasterConfiguration) error {
 	if err := os.MkdirAll(manifestsPath, 0700); err != nil {
 		return fmt.Errorf("<master/manifests> failed to create directory %q [%v]", manifestsPath, err)
 	}
+	// pre pull pause images
+	if s.PrePullCoreImage {
+		image := images.GetAddonImage(s, images.Pause)
+		fmt.Printf("pre pull image: %s\n", image)
+		err := pullImages(image)
+		if err != nil {
+			return fmt.Errorf("pre pull image '%s' failed: %s", image, err.Error())
+		}
+	}
+
 	for name, spec := range staticPodSpecs {
 		filename := path.Join(manifestsPath, name+".json")
 		serialized, err := json.MarshalIndent(spec, "", "  ")
 		if err != nil {
 			return fmt.Errorf("<master/manifests> failed to marshall manifest for %q to JSON [%v]", name, err)
+		}
+		if s.PrePullCoreImage {
+			for _, container := range spec.Spec.Containers {
+				image := container.Image
+				fmt.Printf("pre pull image: %s\n", image)
+				err := pullImages(image)
+				if err != nil {
+					return fmt.Errorf("pre pull image '%s' failed: %s", image, err.Error())
+				}
+			}
 		}
 		if err := cmdutil.DumpReaderToFile(bytes.NewReader(serialized), filename); err != nil {
 			return fmt.Errorf("<master/manifests> failed to create static pod manifest file for %q (%q) [%v]", name, filename, err)

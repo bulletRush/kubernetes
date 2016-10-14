@@ -98,6 +98,16 @@ func NewCmdInit(out io.Writer) *cobra.Command {
 		`Choose a specific Kubernetes version for the control plane`,
 	)
 
+	cmd.PersistentFlags().StringVar(
+		&cfg.CoreImagePrefix, "use-specified-registry", kubeadmapi.DefaultCoreImagePrefix,
+		`Use specified registry instead of GCR`,
+	)
+
+	cmd.PersistentFlags().BoolVar(
+		&cfg.PrePullCoreImage, "prepull-kube-images", true,
+		`Prepull kubernets images before write static pod manifests`,
+	)
+
 	cmd.PersistentFlags().StringVar(&cfgPath, "config", "", "Path to kubeadm config file")
 
 	// TODO (phase1+) @errordeveloper make the flags below not show up in --help but rather on --advanced-help
@@ -199,7 +209,7 @@ func (i *Init) Run(out io.Writer) error {
 		}
 	}
 
-	client, err := kubemaster.CreateClientAndWaitForAPI(kubeconfigs["admin"])
+	client, err := kubemaster.CreateClientAndWaitForAPI(i.cfg, kubeconfigs["admin"])
 	if err != nil {
 		return err
 	}

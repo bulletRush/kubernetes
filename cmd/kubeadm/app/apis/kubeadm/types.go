@@ -27,6 +27,8 @@ type MasterConfiguration struct {
 	Networking        Networking
 	KubernetesVersion string
 	CloudProvider     string
+	CoreImagePrefix   string
+	PrePullCoreImage  bool
 }
 
 type API struct {

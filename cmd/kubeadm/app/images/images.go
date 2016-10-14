@@ -36,7 +36,6 @@ const (
 	KubeExechealthzImage = "exechealthz"
 	Pause                = "pause"
 
-	gcrPrefix   = "gcr.io/google_containers"
 	etcdVersion = "2.2.5"
 
 	kubeDNSVersion     = "1.7"
@@ -50,20 +49,21 @@ func GetCoreImage(image string, cfg *kubeadmapi.MasterConfiguration, overrideIma
 		return overrideImage
 	}
 
-	return map[string]string{
-		KubeEtcdImage:              fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "etcd", runtime.GOARCH, etcdVersion),
-		KubeAPIServerImage:         fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "kube-apiserver", runtime.GOARCH, cfg.KubernetesVersion),
-		KubeControllerManagerImage: fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "kube-controller-manager", runtime.GOARCH, cfg.KubernetesVersion),
-		KubeSchedulerImage:         fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "kube-scheduler", runtime.GOARCH, cfg.KubernetesVersion),
-		KubeProxyImage:             fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "kube-proxy", runtime.GOARCH, cfg.KubernetesVersion),
+	image_full_name := map[string]string{
+		KubeEtcdImage:              fmt.Sprintf("%s/%s-%s:%s", cfg.CoreImagePrefix, "etcd", runtime.GOARCH, etcdVersion),
+		KubeAPIServerImage:         fmt.Sprintf("%s/%s-%s:%s", cfg.CoreImagePrefix, "kube-apiserver", runtime.GOARCH, cfg.KubernetesVersion),
+		KubeControllerManagerImage: fmt.Sprintf("%s/%s-%s:%s", cfg.CoreImagePrefix, "kube-controller-manager", runtime.GOARCH, cfg.KubernetesVersion),
+		KubeSchedulerImage:         fmt.Sprintf("%s/%s-%s:%s", cfg.CoreImagePrefix, "kube-scheduler", runtime.GOARCH, cfg.KubernetesVersion),
+		KubeProxyImage:             fmt.Sprintf("%s/%s-%s:%s", cfg.CoreImagePrefix, "kube-proxy", runtime.GOARCH, cfg.KubernetesVersion),
 	}[image]
+	return image_full_name
 }
 
-func GetAddonImage(image string) string {
+func GetAddonImage(s *kubeadmapi.MasterConfiguration, image string) string {
 	return map[string]string{
-		KubeDNSImage:         fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "kubedns", runtime.GOARCH, kubeDNSVersion),
-		KubeDNSmasqImage:     fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "kube-dnsmasq", runtime.GOARCH, dnsmasqVersion),
-		KubeExechealthzImage: fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "exechealthz", runtime.GOARCH, exechealthzVersion),
-		Pause:                fmt.Sprintf("%s/%s-%s:%s", gcrPrefix, "pause", runtime.GOARCH, pauseVersion),
+		KubeDNSImage:         fmt.Sprintf("%s/%s-%s:%s", s.CoreImagePrefix, "kubedns", runtime.GOARCH, kubeDNSVersion),
+		KubeDNSmasqImage:     fmt.Sprintf("%s/%s-%s:%s", s.CoreImagePrefix, "kube-dnsmasq", runtime.GOARCH, dnsmasqVersion),
+		KubeExechealthzImage: fmt.Sprintf("%s/%s-%s:%s", s.CoreImagePrefix, "exechealthz", runtime.GOARCH, exechealthzVersion),
+		Pause:                fmt.Sprintf("%s/%s-%s:%s", s.CoreImagePrefix, "pause", runtime.GOARCH, pauseVersion),
 	}[image]
 }
