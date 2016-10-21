@@ -16,7 +16,12 @@ limitations under the License.
 
 package kubeadm
 
-import "k8s.io/kubernetes/pkg/api/unversioned"
+import (
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	// we must use "api" instead of "api/v1", because v1.PodSecurityContext doesn't have `HostNetwork` field.
+	"k8s.io/kubernetes/pkg/api"
+)
+
 
 type MasterConfiguration struct {
 	unversioned.TypeMeta
@@ -28,6 +33,8 @@ type MasterConfiguration struct {
 	Networking        Networking
 	KubernetesVersion string
 	CloudProvider     string
+	PodSpecs          map[string]api.PodSpec`json:"podSpecs"`
+	PrePullPods       []string `json:"prePullPods"`
 }
 
 type API struct {

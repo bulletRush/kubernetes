@@ -71,6 +71,7 @@ func newKubeDiscoveryPodSpec(cfg *kubeadmapi.MasterConfiguration) api.PodSpec {
 		Containers: []api.Container{{
 			Name:    kubeDiscoveryName,
 			Image:   envParams["discovery_image"],
+			ImagePullPolicy: api.PullIfNotPresent,
 			Command: []string{"/usr/local/bin/kube-discovery"},
 			VolumeMounts: []api.VolumeMount{{
 				Name:      kubeDiscoverySecretName,

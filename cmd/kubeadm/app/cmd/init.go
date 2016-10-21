@@ -34,6 +34,11 @@ import (
 	_ "k8s.io/kubernetes/pkg/cloudprovider/providers"
 	"k8s.io/kubernetes/pkg/runtime"
 	netutil "k8s.io/kubernetes/pkg/util/net"
+	dockertypes "github.com/docker/engine-api/types"
+	dockerapi "github.com/docker/engine-api/client"
+	"golang.org/x/net/context"
+	"github.com/docker/docker/pkg/jsonmessage"
+	"os"
 )
 
 var (
@@ -192,6 +197,40 @@ func (i *Init) Run(out io.Writer) error {
 		return err
 	}
 
+	fmt.Printf("prePullPods: %v\n", i.cfg.PrePullPods)
+	if len(i.cfg.PrePullPods) > 0 {
+		prePullPodSet := map[string]struct{}{}
+		for _, image := range i.cfg.PrePullPods {
+			prePullPodSet[image] = struct {}{}
+		}
+		client, err := dockerapi.NewEnvClient()
+		if err != nil {
+			return err
+		}
+		ctx, _ := context.WithCancel(context.Background())
+		opts := dockertypes.ImagePullOptions{}
+		for podKey, podSpec := range i.cfg.PodSpecs {
+			_, exist := prePullPodSet[podKey]
+			if !exist {
+				continue
+			}
+			for _, container := range podSpec.Containers {
+				image := container.Image
+				fmt.Printf("pre pull image \"%s\" in pod \"%s\"\n", image, podKey)
+				resp, err := client.ImagePull(ctx, image, opts)
+				if err != nil {
+					fmt.Printf("pre pull image \"%s\" failed: %s\n", image, err.Error())
+					return err
+				}
+				err = jsonmessage.DisplayJSONMessagesStream(resp, os.Stdout, os.Stdout.Fd(), true, nil)
+				if err != nil {
+					fmt.Printf("pre pull image \"%s\" failed: %s\n", image, err.Error())
+					return err
+				}
+			}
+		}
+	}
+
 	if err := kubemaster.WriteStaticPodManifests(i.cfg); err != nil {
 		return err
 	}
@@ -221,7 +260,7 @@ func (i *Init) Run(out io.Writer) error {
 		}
 	}
 
-	client, err := kubemaster.CreateClientAndWaitForAPI(kubeconfigs["admin"])
+	client, err := kubemaster.CreateClientAndWaitForAPI(i.cfg, kubeconfigs["admin"])
 	if err != nil {
 		return err
 	}

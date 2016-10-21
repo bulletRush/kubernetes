@@ -30,11 +30,27 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	"k8s.io/kubernetes/pkg/util/wait"
+	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
+	"bytes"
+	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	"path"
 )
 
 const apiCallRetryInterval = 500 * time.Millisecond
 
-func CreateClientAndWaitForAPI(adminConfig *clientcmdapi.Config) (*clientset.Clientset, error) {
+func writePodSpec(name string, spec api.PodSpec) {
+	serialized, err := json.MarshalIndent(spec, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	filename := path.Join(name + ".json")
+	err = cmdutil.DumpReaderToFile(bytes.NewReader(serialized), filename)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func CreateClientAndWaitForAPI(cfg *kubeadmapi.MasterConfiguration, adminConfig *clientcmdapi.Config) (*clientset.Clientset, error) {
 	adminClientConfig, err := clientcmd.NewDefaultClientConfig(
 		*adminConfig,
 		&clientcmd.ConfigOverrides{},
@@ -97,7 +113,7 @@ func CreateClientAndWaitForAPI(adminConfig *clientcmdapi.Config) (*clientset.Cli
 		return true, nil
 	})
 
-	createDummyDeployment(client)
+	createDummyDeployment(cfg, client)
 
 	return client, nil
 }
@@ -223,16 +239,23 @@ func SetMasterNodeAffinity(meta *api.ObjectMeta) {
 	meta.Annotations[api.AffinityAnnotationKey] = string(affinityAnnotation)
 }
 
-func createDummyDeployment(client *clientset.Clientset) {
+func createDummyDeployment(cfg *kubeadmapi.MasterConfiguration, client *clientset.Clientset) {
 	fmt.Println("<master/apiclient> attempting a test deployment")
-	dummyDeployment := NewDeployment("dummy", 1, api.PodSpec{
-		SecurityContext: &api.PodSecurityContext{HostNetwork: true},
-		Containers: []api.Container{{
-			Name:  "dummy",
-			Image: images.GetAddonImage("pause"),
-		}},
-	})
-
+	podSpec, ok := cfg.PodSpecs["dummy"]
+	if !ok {
+		podSpec = api.PodSpec{
+			SecurityContext: &api.PodSecurityContext{HostNetwork: true},
+			Containers: []api.Container{{
+				Name:  "dummy",
+				Image: images.GetAddonImage("pause"),
+				ImagePullPolicy: api.PullIfNotPresent,
+			}},
+		}
+	} else {
+		fmt.Printf("use dummy pod spec in configuration file\n")
+	}
+	dummyDeployment := NewDeployment("dummy", 1, podSpec)
+	writePodSpec("dummyR", dummyDeployment.Spec.Template.Spec)
 	wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
 		// TODO: we should check the error, as some cases may be fatal
 		if _, err := client.Extensions().Deployments(api.NamespaceSystem).Create(dummyDeployment); err != nil {
@@ -241,7 +264,7 @@ func createDummyDeployment(client *clientset.Clientset) {
 		}
 		return true, nil
 	})
-
+	fmt.Printf("wating available replicas >= 1\n")
 	wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
 		d, err := client.Extensions().Deployments(api.NamespaceSystem).Get("dummy")
 		if err != nil {

@@ -60,6 +60,7 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 		kubeAPIServer: componentPod(api.Container{
 			Name:          kubeAPIServer,
 			Image:         images.GetCoreImage(images.KubeAPIServerImage, cfg, envParams["hyperkube_image"]),
+			ImagePullPolicy: api.PullIfNotPresent,
 			Command:       getComponentCommand(apiServer, cfg),
 			VolumeMounts:  []api.VolumeMount{certsVolumeMount(), k8sVolumeMount()},
 			LivenessProbe: componentProbe(8080, "/healthz"),
@@ -67,6 +68,7 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 		}, certsVolume(cfg), k8sVolume(cfg)),
 		kubeControllerManager: componentPod(api.Container{
 			Name:          kubeControllerManager,
+			ImagePullPolicy: api.PullIfNotPresent,
 			Image:         images.GetCoreImage(images.KubeControllerManagerImage, cfg, envParams["hyperkube_image"]),
 			Command:       getComponentCommand(controllerManager, cfg),
 			VolumeMounts:  []api.VolumeMount{certsVolumeMount(), k8sVolumeMount()},
@@ -76,6 +78,7 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 		kubeScheduler: componentPod(api.Container{
 			Name:          kubeScheduler,
 			Image:         images.GetCoreImage(images.KubeSchedulerImage, cfg, envParams["hyperkube_image"]),
+			ImagePullPolicy: api.PullIfNotPresent,
 			Command:       getComponentCommand(scheduler, cfg),
 			LivenessProbe: componentProbe(10251, "/healthz"),
 			Resources:     componentResources("100m"),
@@ -94,6 +97,7 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 			},
 			VolumeMounts:  []api.VolumeMount{certsVolumeMount(), etcdVolumeMount(), k8sVolumeMount()},
 			Image:         images.GetCoreImage(images.KubeEtcdImage, cfg, envParams["etcd_image"]),
+			ImagePullPolicy: api.PullIfNotPresent,
 			LivenessProbe: componentProbe(2379, "/health"),
 			Resources:     componentResources("200m"),
 			SecurityContext: &api.SecurityContext{
@@ -114,6 +118,13 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 	}
 	for name, spec := range staticPodSpecs {
 		filename := path.Join(manifestsPath, name+".json")
+		if specCfg, ok := cfg.PodSpecs[name]; ok {
+			// TODO: is this correct?
+			err := api.Convert_api_PodSpec_To_v1_PodSpec(&specCfg, &spec.Spec, nil)
+			if err != nil {
+				panic(err)
+			}
+		}
 		serialized, err := json.MarshalIndent(spec, "", "  ")
 		if err != nil {
 			return fmt.Errorf("<master/manifests> failed to marshall manifest for %q to JSON [%v]", name, err)

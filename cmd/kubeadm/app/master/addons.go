@@ -43,6 +43,7 @@ func createKubeProxyPodSpec(cfg *kubeadmapi.MasterConfiguration, architecture st
 		Containers: []api.Container{{
 			Name:            kubeProxy,
 			Image:           images.GetCoreImage(images.KubeProxyImage, cfg, envParams["hyperkube_image"]),
+			ImagePullPolicy: api.PullIfNotPresent,
 			Command:         append(getComponentCommand("proxy", cfg), "--kubeconfig=/run/kubeconfig"),
 			SecurityContext: &api.SecurityContext{Privileged: &privilegedTrue},
 			VolumeMounts: []api.VolumeMount{
@@ -116,6 +117,7 @@ func createKubeDNSPodSpec(cfg *kubeadmapi.MasterConfiguration) api.PodSpec {
 			{
 				Name:  "kube-dns",
 				Image: images.GetAddonImage(images.KubeDNSImage),
+				ImagePullPolicy: api.PullIfNotPresent,
 				Resources: api.ResourceRequirements{
 					Limits:   dnsPodResources,
 					Requests: dnsPodResources,
