@@ -82,7 +82,11 @@ func (e *E2EServices) Start() error {
 		// Start kubelet
 		// Create the manifest path for kubelet.
 		// TODO(random-liu): Remove related logic when we move kubelet starting logic out of the test.
-		framework.TestContext.ManifestPath, err = ioutil.TempDir("", "node-e2e-pod")
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current working directory: %v", err)
+		}
+		framework.TestContext.ManifestPath, err = ioutil.TempDir(cwd, "pod-manifest")
 		if err != nil {
 			return fmt.Errorf("failed to create static pod manifest directory: %v", err)
 		}
@@ -195,7 +199,6 @@ func (e *E2EServices) startKubelet() (*server, error) {
 		"--address", "0.0.0.0",
 		"--port", kubeletPort,
 		"--read-only-port", kubeletReadOnlyPort,
-		"--hostname-override", framework.TestContext.NodeName, // Required because hostname is inconsistent across hosts
 		"--volume-stats-agg-period", "10s", // Aggregate volumes frequently so tests don't need to wait as long
 		"--allow-privileged", "true",
 		"--serialize-image-pulls", "false",
@@ -207,11 +210,11 @@ func (e *E2EServices) startKubelet() (*server, error) {
 		"--feature-gates", framework.TestContext.FeatureGates,
 		"--v", LOG_VERBOSITY_LEVEL, "--logtostderr",
 
-		// Temporarily disabled:
-		// "--experimental-mounter-path", framework.TestContext.MounterPath,
-		// "--experimental-mounter-rootfs-path", framework.TestContext.MounterRootfsPath,
+		"--experimental-mounter-path", framework.TestContext.MounterPath,
 	)
-
+	if framework.TestContext.NodeName != "" { // If node name is specified, set hostname override.
+		cmdArgs = append(cmdArgs, "--hostname-override", framework.TestContext.NodeName)
+	}
 	if framework.TestContext.EnableCRI {
 		cmdArgs = append(cmdArgs, "--experimental-cri", "true") // Whether to use experimental cri integration.
 	}

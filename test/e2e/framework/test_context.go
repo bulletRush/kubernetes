@@ -100,7 +100,9 @@ type TestContextType struct {
 
 // NodeTestContextType is part of TestContextType, it is shared by all node e2e test.
 type NodeTestContextType struct {
-	// Name of the node to run tests on (node e2e suite only).
+	// NodeE2E indicates whether it is running node e2e.
+	NodeE2E bool
+	// Name of the node to run tests on.
 	NodeName string
 	// NodeConformance indicates whether the test is running in node conformance mode.
 	NodeConformance bool
@@ -123,8 +125,6 @@ type NodeTestContextType struct {
 	ContainerRuntimeEndpoint string
 	// MounterPath is the path to the program to run to perform a mount
 	MounterPath string
-	// MounterRootfsPath is the path to the root filesystem for the program used to perform a mount in kubelet
-	MounterRootfsPath string
 }
 
 type CloudConfig struct {
@@ -210,7 +210,9 @@ func RegisterClusterFlags() {
 
 // Register flags specific to the node e2e test suite.
 func RegisterNodeFlags() {
-	flag.StringVar(&TestContext.NodeName, "node-name", "", "Name of the node to run tests on (node e2e suite only).")
+	// Mark the test as node e2e when node flags are registered.
+	TestContext.NodeE2E = true
+	flag.StringVar(&TestContext.NodeName, "node-name", "", "Name of the node to run tests on.")
 	// TODO(random-liu): Move kubelet start logic out of the test.
 	// TODO(random-liu): Move log fetch logic out of the test.
 	// There are different ways to start kubelet (systemd, initd, docker, rkt, manually started etc.)
@@ -229,7 +231,6 @@ func RegisterNodeFlags() {
 	flag.BoolVar(&TestContext.EnableCRI, "enable-cri", false, "Enable Container Runtime Interface (CRI) integration.")
 	flag.StringVar(&TestContext.ContainerRuntimeEndpoint, "container-runtime-endpoint", "", "The endpoint of remote container runtime grpc server, mainly used for Remote CRI validation.")
 	flag.StringVar(&TestContext.MounterPath, "experimental-mounter-path", "", "Path of mounter binary. Leave empty to use the default mount.")
-	flag.StringVar(&TestContext.MounterRootfsPath, "experimental-mounter-rootfs-path", "", "Absolute path to root filesystem for the mounter binary.")
 }
 
 // overwriteFlagsWithViperConfig finds and writes values to flags using viper as input.
