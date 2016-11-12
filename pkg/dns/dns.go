@@ -477,6 +477,13 @@ func (kd *KubeDNS) newExternalNameService(service *kapi.Service) {
 	defer kd.cacheLock.Unlock()
 	// Store the service name directly as the leaf key
 	kd.cache.SetEntry(service.Name, recordValue, fqdn, cachePath...)
+
+	if service.Spec.ExternalServiceIP != "" {
+		recordValue, recordLabel := util.GetSkyMsg(service.Spec.ExternalName, 0)
+		fqdn = kd.fqdn(service, recordLabel)
+		kd.cache.SetEntry(recordLabel, recordValue, fqdn)
+		glog.Infof("XXXX new entry: %v, %v, %v", recordLabel, recordValue, fqdn)
+	}
 }
 
 // Records responds with DNS records that match the given name, in a format
