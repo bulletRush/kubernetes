@@ -2229,8 +2229,11 @@ type ServiceSpec struct {
 	// return as a CNAME record for this service. No proxying will be involved.
 	// Must be a valid DNS name and requires Type to be ExternalName.
 	ExternalName string
-	//
-	ExternalServiceIP string `json:"externalServiceIP,omitempty`
+
+	// test test
+	// +optional
+	ExternalServiceIP string `json:"externalServiceIP,omitempty"`
+
 	// ExternalIPs are used by external load balancers, or can be set by
 	// users to handle external traffic that arrives at a node.
 	// +optional

@@ -479,10 +479,13 @@ func (kd *KubeDNS) newExternalNameService(service *kapi.Service) {
 	kd.cache.SetEntry(service.Name, recordValue, fqdn, cachePath...)
 
 	if service.Spec.ExternalServiceIP != "" {
-		recordValue, recordLabel := util.GetSkyMsg(service.Spec.ExternalName, 0)
+		recordValue, recordLabel := util.GetSkyMsg(service.Spec.ExternalServiceIP, 0)
 		fqdn = kd.fqdn(service, recordLabel)
-		kd.cache.SetEntry(recordLabel, recordValue, fqdn)
-		glog.Infof("XXXX new entry: %v, %v, %v", recordLabel, recordValue, fqdn)
+		a := util.ReverseArray(strings.Split(strings.TrimRight(service.Spec.ExternalName, "."), "."))
+		cachePath = append(kd.domainPath, serviceSubdomain, service.Namespace)
+		cachePath = append(cachePath, a...)
+		kd.cache.SetEntry(recordLabel, recordValue, fqdn, cachePath...)
+		glog.Infof("XXXX new entry: %v, %v, %v, %v", recordLabel, recordValue, fqdn, cachePath)
 	}
 }
 

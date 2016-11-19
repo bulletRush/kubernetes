@@ -12826,6 +12826,13 @@ var OpenAPIDefinitions *common.OpenAPIDefinitions = &common.OpenAPIDefinitions{
 							Format:      "",
 						},
 					},
+					"externalServiceIP": {
+						SchemaProps: spec.SchemaProps{
+							Description: "test test",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"ports"},
 			},

@@ -2578,6 +2578,10 @@ type ServiceSpec struct {
 	// Must be a valid DNS name and requires Type to be ExternalName.
 	// +optional
 	ExternalName string `json:"externalName,omitempty" protobuf:"bytes,10,opt,name=externalName"`
+
+	// test test
+	// +optional
+	ExternalServiceIP string `json:"externalServiceIP,omitempty"`
 }
 
 // ServicePort contains information on service's port.

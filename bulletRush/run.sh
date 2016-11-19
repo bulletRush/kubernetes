@@ -7,6 +7,7 @@ KUBE_VERBOSE=10
 BASE_PATH="$(pwd)"
 OUTPUT="$BASE_PATH/_tmp"
 OUTPUT_BIN="$OUTPUT/bin"
+GOBUILD="CGO_ENABLED=0 go"
 
 # Print a status line.  Formatted to show up in a stream of output.
 kube::log::status() {
@@ -38,21 +39,41 @@ kube::util::wait-for-jobs() {
 
 kube::build::build_and_copy_binaries() {
     local targets=(
-        kube-apiserver
-        kube-controller-manager
+        # kube-apiserver
+        #kube-controller-manager
         kube-dns
-        kube-proxy
-        kubeadm
-        kubectl
-        kubelet
+        #kube-proxy
+        #kubeadm
+        #kubectl
+        #kubelet
     )
     mkdir -p "$OUTPUT_BIN"
     for component in "${targets[@]}"; do
          component_path="$BASE_PATH/cmd/$component"
          kube::log::status "build: $component_path"
          cd "$component_path"
-         go build -i -v
-         cp "${component_path}/${component}" "${OUTPUT_BIN}/${component}"
+         CGO_ENABLED=0 go build -i -v
+         local src="${component_path}/${component}"
+         local dst="${OUTPUT_BIN}/${component}"
+         kube::log::status "cp ${src} to ${dst}"
+         cp ${src} ${dst}
+    done
+}
+
+kube::build::build_and_copy_plugin_binaries() {
+    local targets=(
+        kube-scheduler
+    )
+    mkdir -p "$OUTPUT_BIN"
+    for component in "${targets[@]}"; do
+         component_path="$BASE_PATH/plugin/cmd/$component"
+         kube::log::status "build: $component_path"
+         cd "$component_path"
+         CGO_ENABLED=0 go build -i -v
+         local src="${component_path}/${component}"
+         local dst="${OUTPUT_BIN}/${component}"
+         kube::log::status "cp ${src} to ${dst}"
+         cp ${src} ${dst}
     done
 }
 
@@ -60,7 +81,7 @@ kube::build::build_kubernetes_images() {
     local targets=(
         kube-apiserver,busybox
         kube-controller-manager,busybox
-        # kube-scheduler,busybox
+        kube-scheduler,busybox
         kube-proxy,barrettwu/debian-iptables-amd64:v4
     )
     local arch="amd64"
@@ -77,16 +98,25 @@ kube::build::build_kubernetes_images() {
             local docker_file_path="${docker_build_path}/Dockerfile"
             local binary_file_path="${OUTPUT_BIN}/${binary_name}"
             mkdir -p ${docker_build_path}
-            cp ${binary_file_path} ${docker_build_path}/${binary_name}
+            local src=${binary_file_path}
+            local dst=${docker_build_path}/${binary_name}
+            kube::log::status "cp ${src} to ${dst}"
+            cp ${src} ${dst}
             printf " FROM ${base_image} \n ADD ${binary_name} /usr/local/bin/${binary_name}\n" > ${docker_file_path}
             local docker_image_tag=barrettwu/${binary_name}-${arch}:dev
             docker build -q -t "${docker_image_tag}" ${docker_build_path}
             echo "Build end: ${docker_image_tag}"
-        ) &
+        ) 
     done
-    kube::util::wait-for-jobs || { echo "err happened"; return 1; }
+    # kube::util::wait-for-jobs || { echo "err happened"; return 1; }
     kube::log::status "Docker builds done"
 }
 
-# kube::build::build_and_copy_binaries
-kube::build::build_kubernetes_images
+
+#kube::build::build_kubernetes_plugin_images() {
+
+#}
+
+kube::build::build_and_copy_binaries
+#kube::build::build_and_copy_plugin_binaries
+#kube::build::build_kubernetes_images
